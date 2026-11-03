@@ -268,7 +268,22 @@ async function buildResourceMap(urls, includeImages) {
 
 function inlineHtml(html, map) {
   let out = html;
-  for (const [url, data] of map) out = out.split(url).join(data);
+  const replacements = [];
+  for (const [url, data] of map) {
+    replacements.push([url, data]);
+    const escapedUrl = url.replace(/&/g, '&amp;');
+    if (escapedUrl !== url) replacements.push([escapedUrl, data]);
+  }
+  replacements.sort((a, b) => b[0].length - a[0].length);
+
+  // Keep budget-excluded or failed resources intact when they extend a URL we inline.
+  const urlCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;=%";
+  for (const [url, data] of replacements) {
+    out = out.replaceAll(url, (match, offset, source) => {
+      const next = source[offset + match.length];
+      return next && urlCharacters.includes(next) ? match : data;
+    });
+  }
   return out;
 }
 
